@@ -1,0 +1,6 @@
+.vscode
+.empty
+.idea
+.DS_Store
+htmlcov
+geckodriver.log
