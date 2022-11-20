@@ -143,6 +143,7 @@ class AsyncWorker(BaseWorker):
                             await event_hooks.aemit("worker.success", self, r)
                     # set result for placeholder
                     self.future.set_result(self.path)
+                    self.puller._ft_map.pop(id(self.future))
                     break  # Quit successfully
                 # Retry on network IO error
                 except (httpx.HTTPError, httpx.StreamError) as e:
@@ -156,13 +157,13 @@ class AsyncWorker(BaseWorker):
         except (Exception, asyncio.CancelledError) as e:
             handled = await event_hooks.aemit("worker.fail", self, e)
             if True not in handled:
-                self.future.cancel()
+                self.future.set_exception(e)
                 raise e
+            self.puller._ft_map.pop(id(self.future))
         finally:
             await event_hooks.aemit("worker.destroy", self)
             self.puller._workers.get_nowait()
             self.puller._workers.task_done()  # workers count - 1
-            del self.puller._jobs[id(self)]
 
     def __repr__(self) -> str:
         return f"AsynWorker({self.url}, {self.path})"
@@ -177,15 +178,13 @@ class AsyncMaster(BaseMaster):
         try:
             buffer = self.puller._buffer
             workers = self.puller._workers
-            jobs = self.puller._jobs
             while True:
                 worker = await buffer.get()
                 if worker is None:  # Kill signal
                     buffer.task_done()
                     break
                 await workers.put(worker)  # blocks when max_workers reached
-                task = self.puller._loop.create_task(worker.run())
-                jobs[id(worker)] = task
+                self.puller._loop.create_task(worker.run())
                 buffer.task_done()
                 await asyncio.sleep(self.puller.interval)  # sleep a while
         finally:
@@ -235,7 +234,7 @@ class AsyncPuller(BasePuller):
         self._buffer: asyncio.Queue = asyncio.Queue()  # Pending workers
         self._workers: asyncio.Queue = asyncio.Queue(
             maxsize=max_workers)  # Running workers
-        self._jobs: dict[int, Future] = {}
+        self._ft_map: dict[int, Future] = {}
 
         limits = httpx.Limits(
             max_connections=None,
@@ -357,6 +356,7 @@ class AsyncPuller(BasePuller):
             self._master = AsyncMaster(self)
             self._loop.create_task(self._master.run())
         future: Future = Future()  # A placeholder for the worker.run() task
+        self._ft_map[id(future)] = future
         worker = AsyncWorker(
             self,
             url=url,
@@ -378,7 +378,10 @@ class AsyncPuller(BasePuller):
         """### Wait for all workers to finish."""
         await self._event_hooks.aemit("puller.join", self)
         await self._buffer.join()  # Make sure no pending tasks
-        await asyncio.gather(*list(self._jobs.values()))  # Make sure all tasks are done
+        await self._workers.join()  # Make sure all workers finished
+        jobs = list(self._ft_map.values())
+        self._ft_map.clear()
+        await asyncio.gather(*jobs)  # Make sure all tasks are done
 
     async def aclose(self):
         await self.join()  # Make sure all tasks are done

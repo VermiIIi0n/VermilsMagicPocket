@@ -1,6 +1,7 @@
 import http.cookiejar
 import pytest
 import os
+import platform
 import logging
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from pathlib import Path
@@ -32,20 +33,21 @@ def test_mimics():
 def test_sort_class():
     class A:
         ...
-    
+
     class B(A):
         ...
-    
+
     class C(B):
         ...
-    
+
     class D(A):
         ...
-    
+
     class E:
         ...
-    
+
     assert sort_class([B, D, C, object, A, E]) == [C, B, D, A, E, object]
+
 
 def test_stringify_keys():
     assert stringify_keys({1: 2, 3: 4}) == {"1": 2, "3": 4}
@@ -66,16 +68,20 @@ def test_stringify_keys():
     assert sd['tuple'][1]['3'] == 4
     assert sd['d'] is sd
 
+
 def test_str_to_object():
     assert str_to_object("mimics", "vermils.gadgets") is mimics
 
+
 def test_real_dir():
     path = "/dir1/dir2/file"
-    assert real_dir(path) == Path("/dir1/dir2")
+    assert real_dir(path) == Path(os.path.dirname(os.path.realpath("/dir1/dir2/file")))
+
 
 def test_real_path():
     path = "/dir1/dir2/file"
-    assert real_path(path) == Path("/dir1/dir2/file")
+    assert real_path(path) == Path(os.path.realpath("/dir1/dir2/file"))
+
 
 def test_version_cmp():
     assert version_cmp("1.0.0", "1.0.0") == 0
@@ -103,6 +109,7 @@ def test_version_cmp():
     with pytest.raises(ValueError):
         version_cmp("1.0.0", "1.0")
 
+
 def test_to_ordinal():
     assert to_ordinal(1) == "1st"
     assert to_ordinal(2) == "2nd"
@@ -120,6 +127,7 @@ def test_to_ordinal():
     assert to_ordinal(45) == "45th"
     assert to_ordinal(46) == "46th"
     assert to_ordinal(113) == "113th"
+
 
 def test_selenium_cookies_to_jar():
     cookies = [
@@ -149,7 +157,11 @@ def test_selenium_cookies_to_jar():
     assert len(jar) == 2
     assert jar._cookies[".www.pixiv.net"]["/"]["_44124"].value == "5313141"
 
+
 def test_monologger():
+    if platform.system() == "Windows":
+        return
+
     with TemporaryDirectory() as tempdir:
         logger = MonoLogger(path=tempdir, level="DEBUG")
         assert MonoLogger.getLogger("root")
@@ -175,7 +187,6 @@ def test_monologger():
         assert len(fnames) == 5
         for fname in fnames:
             assert fname.endswith(".log")
-
         for fname in (
             "debug.log",
             "info.log",
@@ -194,25 +205,27 @@ def test_monologger():
         logger.log(logging.CRITICAL, "test_log")
         with pytest.raises(ValueError):
             logger.log(0, "test_log")
+
         for fname in fnames:
             with open(tempdir / fname) as f:
                 assert "test_log" in f.read()
-        
+
         logger.level = "INFO"
         assert logger.level == "INFO"
         logger.debug("test_abc")
         with open(tempdir / "debug.log") as f:
             assert "test_abc" not in f.read()
-        
+
         MonoLogger(path=tempdir/"test11", level="DEBUG")
 
         with pytest.raises(ValueError, match="log path"):
             MonoLogger(path=str(tempdir/"debug.log"), formatter="abc")
 
+
 def test_sidelogger():
     raw_logger = logging.getLogger("test")
     raw_logger.setLevel(logging.DEBUG)
-    
+
     with NamedTemporaryFile('r+') as f:
         raw_logger.addHandler(logging.StreamHandler(f))
         logger = SideLogger(raw_logger)

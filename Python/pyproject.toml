@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "vermils"
-version = "0.0.1"
+version = "0.0.2"
 description = ""
 authors = ["VermiIIi0n <dungeon.behind0t@icloud.com>"]
 readme = "README.md"
@@ -29,13 +29,19 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.10"
 nest-asyncio = "^1.5.6"
+rich = "^12.6.0"
+httpx = {extras = ["http2", "socks"], version = "^0.23.1", optional = true}
 
 [tool.poetry.extras]
-http = ["httpx", "rich"]
-all = ["httpx", "rich"]
+http = ["httpx", "h2", "socksio"]
+all = ["httpx", "h2", "socksio"]
 
 [tool.poetry.group.dev.dependencies]
 coverage = { extras = ["toml"], version = "^6.5.0" }
+pytest = "^7.2.0"
+pytest-asyncio = "^0.20.2"
+pytest-cov = "^4.0.0"
+coveralls = "^3.3.1"
 
 
 [tool.coverage.run]

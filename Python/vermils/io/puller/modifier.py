@@ -161,8 +161,8 @@ class Modifier:
 
             @puller.on.worker.fail
             async def log_fail(event: str, worker: AsyncWorker, e: Exception):
-                logger.error(f"Fail: {worker} due to {e}")
-                logger.exception(e)
+                logger.error(f"Fail: {worker} due to {type(e).__name__}: {e}")
+                logger.exception(e, exc_info=e)
 
     @staticmethod
     def on_every_event(puller: BasePuller, func: Callable) -> None:

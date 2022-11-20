@@ -1,6 +1,5 @@
 import os
 import pytest
-import httpx
 import http.server
 import threading
 import logging
@@ -17,6 +16,7 @@ PORT = 18000
 def http_server():
     with TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
+
         class MyHdlr(http.server.SimpleHTTPRequestHandler):
             def __init__(self, *args, **kw):
                 kw["directory"] = str(tmpdir)
@@ -115,6 +115,7 @@ async def test_aio_wrappers():
             assert f.seekable()
             assert not f.isatty()
             await f.seek(0)
+            assert 0 == await f.tell()
             assert await f.read() == "hello"
             await f.seek(0)
             assert await f.readline() == "hello"
@@ -152,10 +153,11 @@ async def test_aio_tempfile():
         async for line in f:
             assert line == "hello"
 
+
 async def test_aio_puller(http_server):
     with TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
-        
+
         puller = AsyncPuller()
         Modifier.raise_for_status(puller)
         Modifier.show_progress(puller)
@@ -163,11 +165,12 @@ async def test_aio_puller(http_server):
         Modifier.on_every_event(puller, lambda *args, **kw: None)
 
         url = f"http://localhost:{PORT}"
-        for i in range(64):
+        batch = 4
+        for i in range(batch):
             await puller.pull(url, tmpdir / f"file{i}")
         await puller.join()
-        assert set(os.listdir(tmpdir)) == {f"file{i}" for i in range(64)}
-        
+        assert set(os.listdir(tmpdir)) == {f"file{i}" for i in range(batch)}
+
         with pytest.raises(FileExistsError):
             await puller.pull(url, tmpdir / "file0")
             await puller.join()
@@ -179,12 +182,12 @@ async def test_aio_puller(http_server):
         with pytest.raises(MaxRetryReached):
             await puller.pull(url + "/404", tmpdir / "file0", overwrite=True, retry=0)
             await puller.join()
-        
+
         Modifier.ignore_failure(puller)
         await puller.pull(url + "/404", tmpdir / "file0", overwrite=True, retry=0)
 
         await puller.aclose()
 
         async with AsyncPuller() as puller:
-            await puller.pull(url, tmpdir / "file0", overwrite=True)
+            await puller.pull(url, tmpdir / "file-1", overwrite=True)
             await puller.join()

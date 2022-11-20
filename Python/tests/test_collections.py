@@ -65,7 +65,7 @@ def test_freeze():
     d['d'] = d
     with pytest.raises(TypeError, match="recursive"):
         freeze(d)
-    
+
     with pytest.raises(TypeError, match="unhashable"):
         class Unhashable:
             __hash__ = None
@@ -82,13 +82,12 @@ def test_freeze():
 
     with pytest.raises(AttributeError):
         frozen[3].update({'a': 9})
-    
+
     class Freezable:
         def __freeze__(self, memo):
             return 123
 
     assert freeze(Freezable()) == 123
-
 
 
 def test_strchain():
@@ -205,6 +204,7 @@ def test_strchain():
     c6 = StrChain(juicy=True)
     assert c6.abc._kw == {"juicy": True}
 
+
 def test_objdict_dict_like():
     d = {"a": 1, "b": 2, "c": 3}
 
@@ -246,6 +246,7 @@ def test_objdict_dict_like():
     od = ObjDict(d)
     assert od == d
 
+
 def test_objdict_extra():
     d = {
         'a': 0,
@@ -265,7 +266,7 @@ def test_objdict_extra():
     assert od.default is od.NotExist
     with pytest.raises(AttributeError):
         od.d
-    
+
     od2 = ObjDict(d, recursive=False)
     assert type(od2.c) is dict
 

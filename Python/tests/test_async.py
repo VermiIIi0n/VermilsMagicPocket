@@ -50,8 +50,9 @@ def test_get_create_loop_in_sync():
 async def test_async_run():
     def func(n: int):
         return n
-    
+
     assert 1 == await async_run(func, 1)
+
 
 def test_sync_wait_in_sync():
     async def func():
