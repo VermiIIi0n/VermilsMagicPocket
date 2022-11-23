@@ -1,5 +1,13 @@
 version = 1
 
+test_patterns = [
+  "*/tests/**",
+]
+
+exclude_patterns = [
+  "*/htmlcov/**",
+]
+
 [[analyzers]]
 name = "shell"
 enabled = true
