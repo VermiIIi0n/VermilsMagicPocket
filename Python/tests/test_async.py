@@ -7,7 +7,7 @@ import time
 from threading import Thread, get_ident
 from concurrent.futures._base import CancelledError as SyncCancelledError
 from vermils.asynctools import to_async_gen, ensure_async, sync_await, async_run
-from vermils.asynctools import get_create_loop, AsinkRunner, TerminateRunner
+from vermils.asynctools import get_create_loop, AsinkRunner, TerminateRunner, select
 
 
 async def test_get_create_loop():
@@ -468,3 +468,44 @@ async def test_asinkrunner_wrappers():
     with pytest.raises(StopAsyncIteration):
         await agen.asend(None)
         await agen.athrow(ValueError("TEST"))
+
+async def test_select_coroutines():
+    async def co(i: int) -> int:
+        await asyncio.sleep(0.01)
+        return i
+    n = 6
+    coros = [co(i) for i in range(n)]
+    ret = []
+    async for i in select(coros):
+        ret.append(i)
+    assert sorted(ret) == list(range(n))
+
+async def test_select_coroutines_exc():
+    async def co(i: int) -> int:
+        await asyncio.sleep(0.01)
+        if i == 3:
+            raise ValueError("TEST")
+        return i
+    n = 6
+    coros = [co(i) for i in range(n)]
+    ret = []
+    with pytest.raises(ValueError, match="TEST"):
+        async for i in select(coros):
+            ret.append(i)
+
+async def test_select_generators():
+    async def gen(i: int) -> int:
+        for _ in range(i):
+            await asyncio.sleep(0.001)
+            yield i
+    n = 6
+    gens = [gen(i) for i in range(n)]
+    ret = []
+    expected = []
+    for i in range(n):
+        for _ in range(i):
+            expected.append(i)
+
+    async for i in select(gens):
+        ret.append(i)
+    assert sorted(ret) == expected

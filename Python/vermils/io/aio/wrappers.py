@@ -29,13 +29,13 @@ class AsyncIOStream(Generic[_T]):
 
     @overload
     def __init__(self: AsyncIOStream[str], file: TextIOWrapper,
-                 sink: AsinkRunner = None) -> None: ...
+                 sink: AsinkRunner | None = None) -> None: ...
 
     @overload
     def __init__(self: AsyncIOStream[bytes], file: IO,
-                 sink: AsinkRunner = None) -> None: ...
+                 sink: AsinkRunner | None = None) -> None: ...
 
-    def __init__(self, file: IO, sink: AsinkRunner = None) -> None:
+    def __init__(self, file: IO, sink: AsinkRunner | None = None) -> None:
         self._sink = sink or AsinkRunner()
         self._file = file
 
@@ -73,7 +73,7 @@ class AsyncIOStream(Generic[_T]):
     async def tell(self) -> int:
         return await self._sink.run(self._file.tell)
 
-    async def truncate(self, size: int = None) -> int:
+    async def truncate(self, size: int | None = None) -> int:
         return await self._sink.run(self._file.truncate, size)
 
     @property

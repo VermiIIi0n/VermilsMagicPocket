@@ -11,7 +11,7 @@ from concurrent.futures import Executor, Future as SyncFuture
 from contextvars import copy_context
 from functools import wraps, partial
 import threading
-from typing import (TypeVar, Any, Callable, overload, Awaitable,
+from typing import (Iterable, Sequence, TypeVar, Any, Callable, cast, overload, Awaitable,
                     Generator, AsyncGenerator, ParamSpec)
 import nest_asyncio
 
@@ -24,7 +24,7 @@ ARGS = ParamSpec("ARGS")
 _LOCAL = local()
 
 __all__ = ("sync_await", "ensure_async", "to_async", "to_async_gen",
-           "get_create_loop", "async_run")
+           "get_create_loop", "async_run", "select")
 
 
 def sync_await(fut: Awaitable[V],
@@ -195,3 +195,46 @@ async def async_run(func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
         None, copy_context().run, partial(func, *args, **kwargs))
+
+
+async def select(awaitables: Sequence[Awaitable[T] | AsyncGenerator[T, Any]]) -> AsyncGenerator[T, None]:
+    """
+    similar to asyncio.as_completed but returns the results as they are done
+    * `awaitables` - the awaitables to wait for, can be `coroutine`, `future`, `AsyncGenerator`
+
+    Usage:
+    ```
+    async for result in select([func1(), func2(), func3()]):
+        print(result)
+    """
+
+    loop = asyncio.get_running_loop()
+    queue = asyncio.Queue[T]()
+    runners = list[Awaitable[None]]()
+    dummy = object()
+    done = 0
+
+    async def _run(aw: Awaitable[T] | AsyncGenerator[T, Any]):
+        try:
+            if inspect.isasyncgen(aw):
+                async for result in aw:
+                    await queue.put(result)
+            else:
+                aw = cast(Awaitable[T], aw)
+                result = await aw
+                await queue.put(result)
+        finally:
+            await queue.put(dummy)  # type: ignore[arg-type]
+
+    for aw in awaitables:
+        runners.append(loop.create_task(_run(aw)))
+
+    while done < len(runners):
+        result = await queue.get()
+        if result is dummy:
+            done += 1
+        else:
+            yield result
+
+    # Make sure all runners are done, raise exceptions if any
+    await asyncio.gather(*runners)
