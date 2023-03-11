@@ -11,7 +11,8 @@ from concurrent.futures import Executor, Future as SyncFuture
 from contextvars import copy_context
 from functools import wraps, partial
 import threading
-from typing import (Iterable, Sequence, TypeVar, Any, Callable, cast, overload, Awaitable,
+from typing import (Sequence, TypeVar, Any,
+                    Callable, cast, overload, Awaitable,
                     Generator, AsyncGenerator, ParamSpec)
 import nest_asyncio
 
@@ -197,10 +198,12 @@ async def async_run(func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
         None, copy_context().run, partial(func, *args, **kwargs))
 
 
-async def select(awaitables: Sequence[Awaitable[T] | AsyncGenerator[T, Any]]) -> AsyncGenerator[T, None]:
+async def select(awaitables: Sequence[Awaitable[T] | AsyncGenerator[T, Any]]
+                 ) -> AsyncGenerator[T, None]:
     """
     similar to asyncio.as_completed but returns the results as they are done
-    * `awaitables` - the awaitables to wait for, can be `coroutine`, `future`, `AsyncGenerator`
+    * `awaitables` - the awaitables to wait for, can be `coroutine`, `future`,
+     `AsyncGenerator`
 
     Usage:
     ```
