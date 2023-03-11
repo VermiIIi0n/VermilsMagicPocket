@@ -494,7 +494,7 @@ async def test_select_coroutines_exc():
             ret.append(i)
 
 async def test_select_generators():
-    async def gen(i: int) -> int:
+    async def gen(i: int):
         for _ in range(i):
             await asyncio.sleep(0.001)
             yield i
