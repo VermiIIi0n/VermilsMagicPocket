@@ -88,7 +88,7 @@ class MonoLogger:
     def exception(self):
         return self._error.exception
 
-    def log(self, level: int, msg: str, *args, **kwargs):
+    def log(self, level: int, msg: object, *args, **kwargs):
         level = level
         match level:
             case logging.DEBUG:

@@ -3,15 +3,16 @@ Async Utilities.
 """
 
 from __future__ import annotations
+from contextlib import suppress
 import inspect
 import asyncio
-from asyncio import Future
+from asyncio import Future, Task
 from threading import local
 from concurrent.futures import Executor, Future as SyncFuture
 from contextvars import copy_context
 from functools import wraps, partial
 import threading
-from typing import (Sequence, TypeVar, Any,
+from typing import (Literal, Sequence, TypeVar, Any,
                     Callable, cast, overload, Awaitable,
                     Generator, AsyncGenerator, ParamSpec)
 import nest_asyncio
@@ -25,7 +26,7 @@ ARGS = ParamSpec("ARGS")
 _LOCAL = local()
 
 __all__ = ("sync_await", "ensure_async", "to_async", "to_async_gen",
-           "get_create_loop", "async_run", "select")
+           "get_create_loop", "async_run", "select", "wait_until")
 
 
 def sync_await(fut: Awaitable[V],
@@ -68,7 +69,7 @@ def sync_await(fut: Awaitable[V],
         async def wrap():
             return await fut
         try:
-            loop.create_task(wrap()).add_done_callback(callback)
+            loop.create_task(wrap()).add_done_callback(callback)  # type: ignore
         except BaseException as e:  # pragma: no cover # Hard to test
             syncfuture.set_exception(e)
 
@@ -198,46 +199,87 @@ async def async_run(func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
         None, copy_context().run, partial(func, *args, **kwargs))
 
 
-async def select(awaitables: Sequence[Awaitable[T] | AsyncGenerator[T, Any]]
-                 ) -> AsyncGenerator[T, None]:
+async def wait_until(Awaitable):
     """
-    similar to asyncio.as_completed but returns the results as they are done
+    Wait until the given awaitable is done.
+
+    Won't raise any exception.
+    """
+    flag = asyncio.Event()
+    fut = asyncio.ensure_future(Awaitable)
+    fut.add_done_callback(lambda _: flag.set())
+    await flag.wait()
+
+
+@overload
+def select(awaitables: Sequence[Awaitable[T] | AsyncGenerator[T, Any]],
+           return_future: Literal[True]
+           ) -> AsyncGenerator[Future[T], None]:
+    ...
+
+
+@overload
+def select(awaitables: Sequence[Awaitable[T] | AsyncGenerator[T, Any]],
+           return_future: Literal[False] = False
+           ) -> AsyncGenerator[T, None]:
+    ...
+
+
+async def select(awaitables: Sequence[Awaitable[T] | AsyncGenerator[T, Any]],
+                 return_future=False):
+    """
+    similar to asyncio.as_completed but returns the results as they are done.
+
+    If one of the tasks raised an exception, it will be raised by `select`
+     after other tasks are done.
+
     * `awaitables` - the awaitables to wait for, can be `coroutine`, `future`,
      `AsyncGenerator`
+    * `buffersize` - if > 0, the max number of results to buffer before yielding,
+     this can prevent the generator from eating up RAM if the results are slow
+      to be comsumed. Sometimes
+    * `return_future` - if True, the future will be returned instead of the
+        result.
 
     Usage:
     ```
     async for result in select([func1(), func2(), func3()]):
         print(result)
+    ```
     """
 
-    loop = asyncio.get_running_loop()
-    queue = asyncio.Queue[T]()
-    runners = list[Awaitable[None]]()
-    dummy = object()
-    done = 0
-
     async def _run(aw: Awaitable[T] | AsyncGenerator[T, Any]):
-        try:
-            if inspect.isasyncgen(aw):
-                async for result in aw:
-                    await queue.put(result)
-            else:
-                aw = cast(Awaitable[T], aw)
-                result = await aw
-                await queue.put(result)
-        finally:
-            await queue.put(dummy)  # type: ignore[arg-type]
-
-    for aw in awaitables:
-        runners.append(loop.create_task(_run(aw)))
-
-    while done < len(runners):
-        result = await queue.get()
-        if result is dummy:
-            done += 1
+        if inspect.isasyncgen(aw):
+            task = asyncio.ensure_future(aw.asend(None))
         else:
-            yield result
+            aw = cast(Awaitable[T], aw)
+            task = asyncio.ensure_future(aw)
+        await wait_until(task)
+        return (aw, task)
 
-    # Make sure all runners are done, raise exceptions if any
-    await asyncio.gather(*runners)
+    loop = asyncio.get_running_loop()
+    done = set[Task]()
+    pending = set(loop.create_task(_run(aw)) for aw in awaitables)
+
+    while pending:
+        done, pending = await asyncio.wait(
+            pending, return_when=asyncio.FIRST_COMPLETED)
+
+        while done:
+            aw, task = done.pop().result()
+            exc = task.exception()
+
+            if inspect.isasyncgen(aw):
+                if exc is None:
+                    pending.add(loop.create_task(_run(aw)))
+                elif isinstance(exc, StopAsyncIteration):
+                    continue
+            try:
+                if return_future:
+                    yield task
+                else:
+                    yield task.result()
+            except:
+                for task in pending:
+                    task.cancel()
+                raise

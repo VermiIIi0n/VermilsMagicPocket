@@ -7,9 +7,9 @@ from tempfile import TemporaryDirectory, NamedTemporaryFile
 from pathlib import Path
 from vermils.gadgets import mimics, supports_in, sort_class
 from vermils.gadgets import stringify_keys, str_to_object, real_dir
-from vermils.gadgets import real_path, version_cmp
+from vermils.gadgets import real_path, version_cmp, load_module
 from vermils.gadgets import to_ordinal, selenium_cookies_to_jar
-from vermils.gadgets import SideLogger, MonoLogger
+from vermils.gadgets import SideLogger, MonoLogger, check
 
 
 def test_inspects():
@@ -257,3 +257,50 @@ def test_sidelogger():
 
         logger.debug("test_debug")
         logger.join()
+
+def test_load_module():
+    with TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        mod_name = "dummy"
+        fname = tmpdir / f"{mod_name}.py"
+        with open(fname, "w") as f:
+            f.write("imported = True")
+        mod = load_module(mod_name, tmpdir)
+        assert mod.imported
+
+        # Load again
+        mod = load_module(mod_name, tmpdir)
+        assert mod.imported
+
+def test_load_module_with_submodule():
+    with TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        mod_name = "dummyB"
+        name = tmpdir / f"{mod_name}"
+        name.mkdir()
+        fname = name / "__init__.py"
+        with open(fname, "w") as f:
+            f.write("from . import submodule\n")
+            f.write("imported = submodule.imported_sub\n")
+        fname = name / "submodule.py"
+        with open(fname, "w") as f:
+            f.write("imported_sub = True")
+        
+        mod = load_module(mod_name, tmpdir)
+        assert mod.imported
+        assert mod.submodule.imported_sub
+
+def test_check():
+    check(True)
+
+    with pytest.raises(AssertionError, match=r"Assertion failed: check\(False\)"):
+        check(False)
+    
+    with pytest.raises(ValueError, match=r"Assertion failed: check\(False,.*\)"):
+        check(False, exc=ValueError)
+    
+    with pytest.raises(AssertionError, match="abc"):
+        check(False, msg="abc")
+    
+    with pytest.raises(AssertionError, match=''):
+        check(False, msg='')

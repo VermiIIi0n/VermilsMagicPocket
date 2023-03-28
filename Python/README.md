@@ -45,7 +45,7 @@ Tools for asynchronous programming.
 - `AsinkRunner`: A class that runs sync functions asynchronously and sequentially in another thread.
 - `select`: Similar to `select` in Go, supports both awaitables and async generators.
 
-Documentation: [vermils.asynctools](./docs/asynctools.md)
+Documentation: [vermils.asynctools](./docs_old/asynctools.md)
 
 ### `vermils.collections`
 
@@ -58,7 +58,7 @@ Collections of useful classes.
 - `StrChain`: A simple way to create strings. Extremely useful.
 - `ObjDict`: A dict that can be accessed like an object.
 
-Documentation: [vermils.asynctools](./docs/collections.md)
+Documentation: [vermils.asynctools](./docs_old/collections.md)
 
 ### `vermils.gadgets`
 
@@ -77,7 +77,7 @@ Snippets of code that I am too lazy to categorize.
 - `to_ordinal`: Convert an integer to its ordinal form.
 - `selenium_cookies_to_jar`: Convert Selenium cookies to a `http.cookiejar.CookieJar` object.
 
-Documentation: [vermils.gadgets](./docs/gadgets.md)
+Documentation: [vermils.gadgets](./docs_old/gadgets.md)
 
 ### `vermils.io`
 
@@ -104,7 +104,7 @@ Tools for I/O.
 - `DummyFileStream`: A dummy file stream that does nothing.
 - `DummyAioFileStream`: A dummy async file stream that does nothing.
 
-Documentation: [vermils.io](./docs/io.md)
+Documentation: [vermils.io](./docs_old/io.md)
 
 ### `vermils.react`
 
@@ -114,7 +114,7 @@ A simple event system.
 - `ActionCentipede`: The output of a function becomes the input of the next function.
 - `EventHook`: A simple event hook, that binds events to chains of functions.
 
-Documentation: [vermils.react](./docs/react.md)
+Documentation: [vermils.react](./docs_old/react.md)
 
 ### `vermils.tensorflow`
 
@@ -126,4 +126,4 @@ TensorFlow related tools.
 - `metrics`
 - `models`
 
-Documentation: [vermils.tensorflow](./docs/tensorflow.md)
+Documentation: [vermils.tensorflow](./docs_old/tensorflow.md)

@@ -89,7 +89,7 @@ class AsyncWorker(BaseWorker):
         retry: int,
         overwrite: bool,
         *,
-        future: Future | None = None,
+        future: Future = None,
         timeout: Timeout | float | None,
         extra_headers: HeaderTypes | None,
         extra_params: QueryParamTypes | None,
@@ -99,7 +99,7 @@ class AsyncWorker(BaseWorker):
         self.puller = puller
         self.url = url
         self.path = path
-        self.future = future
+        self.future: Future = future  # type: ignore[assignment]
         self.timeout = timeout
         self.max_retry = retry
         self.overwrite = overwrite
@@ -122,7 +122,8 @@ class AsyncWorker(BaseWorker):
             while True:
                 try:
                     # Open file in async mode, if path is None, write to void
-                    async with aio.open(self.path, "wb") if self.path else Dummyf() as f:
+                    async with aio.open(self.path, "wb") \
+                            if self.path else Dummyf() as f:  # type: ignore
                         # Establish connection
                         async with client.stream(
                             method=self.kw.pop("method", "GET"),
@@ -137,13 +138,14 @@ class AsyncWorker(BaseWorker):
                             # Iterate over response chunks
                             # 256KB
                             async for chunk in r.aiter_bytes(chunk_size=2**18):
-                                await event_hooks.aemit("worker.bytes_get", self, r, chunk)
+                                await event_hooks.aemit(
+                                    "worker.bytes_get", self, r, chunk)
                                 await f.write(chunk)
                             await f.flush()
                             await event_hooks.aemit("worker.success", self, r)
                     # set result for placeholder
                     self.future.set_result(self.path)
-                    self.puller._ft_map.pop(id(self.future))
+                    self.puller._ft_map.pop(id(self.future))  # type: ignore
                     break  # Quit successfully
                 # Retry on network IO error
                 except (httpx.HTTPError, httpx.StreamError) as e:
@@ -159,7 +161,7 @@ class AsyncWorker(BaseWorker):
             if True not in handled:
                 self.future.set_exception(e)
                 raise e
-            self.puller._ft_map.pop(id(self.future))
+            self.puller._ft_map.pop(id(self.future))  # type: ignore
         finally:
             await event_hooks.aemit("worker.destroy", self)
             self.puller._workers.get_nowait()
@@ -184,7 +186,7 @@ class AsyncMaster(BaseMaster):
                     buffer.task_done()
                     break
                 await workers.put(worker)  # blocks when max_workers reached
-                self.puller._loop.create_task(worker.run())
+                self.puller.loop.create_task(worker.run())
                 buffer.task_done()
                 await asyncio.sleep(self.puller.interval)  # sleep a while
         finally:
@@ -197,17 +199,17 @@ class AsyncPuller(BasePuller):
     def __init__(
         self,
         *,
-        headers: HeaderTypes | None = None,
-        params: QueryParamTypes | None = None,
-        proxies: ProxiesTypes | None = None,
-        cookies: CookieTypes | None = None,
+        headers: HeaderTypes = None,
+        params: QueryParamTypes = None,
+        proxies: ProxiesTypes = None,
+        cookies: CookieTypes = None,
         event_hooks: Mapping[str, Sequence[Callable]] = None,
         interval: float = 0.0,
         max_workers: int = 8,
         timeout: Timeout | float | None = 10,
         retry: int = 3,
         overwrite: bool = False,
-        loop: asyncio.AbstractEventLoop | None = None,
+        loop: asyncio.AbstractEventLoop = None,
         **kw
     ):
         """### Init Puller
@@ -271,6 +273,8 @@ class AsyncPuller(BasePuller):
 
     @property
     def loop(self):
+        if self._loop is None:
+            self._loop = asyncio.get_running_loop()
         return self._loop
 
     @property

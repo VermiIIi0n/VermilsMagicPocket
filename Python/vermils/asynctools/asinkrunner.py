@@ -167,7 +167,7 @@ class AsinkRunner:
                 return f.get_loop().call_soon_threadsafe(fun, *arg)
             return fun(*arg)
 
-        fut: Future_T = None  # Current future
+        fut: Future_T = None  # type: ignore[assignment] # Current future
 
         try:
             with self._state:

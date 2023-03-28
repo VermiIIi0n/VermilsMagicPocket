@@ -7,15 +7,19 @@ import http.cookiejar as hjar
 import sys
 import os
 import re
+import inspect
 import pathlib
+import importlib
 import contextlib
-from typing import Mapping, Sequence, TypeVar, Iterable, Callable, Any
+from typing import Mapping, NoReturn, Sequence, TypeVar, Iterable, Callable, Any
+from typing import Literal, overload
 
 C = TypeVar("C", bound=Callable)
 
 __all__ = ("stringify_keys", "supports_in", "mimics", "sort_class",
            "str_to_object", "real_dir", "real_path", "version_cmp",
-           "to_ordinal", "selenium_cookies_to_jar")
+           "to_ordinal", "selenium_cookies_to_jar", "DummyLogger",
+           "load_module", "check")
 
 
 def mimics(_: C) -> Callable[[Callable], C]:
@@ -72,16 +76,42 @@ def sort_class(cls: Iterable[type]) -> list[type]:
 
 
 def str_to_object(object_name: str, module: str = "__main__") -> Any:
+    """
+    Get object by its name and module(default to main module)
+    """
     return getattr(sys.modules[module], object_name)
 
 
-def real_dir(path: str = None) -> pathlib.Path:
+def load_module(module_name: str, module_path: str | pathlib.Path):
+    """
+    Load a module from a path.
+    """
+    if module_name in sys.modules:
+        return sys.modules[module_name]
+    module_path = real_path(module_path)
+    if module_path not in sys.path:
+        sys.path.append(str(module_path))
+    module = importlib.import_module(module_name)
+    return module
+
+
+def real_dir(path: str | pathlib.Path | None = None) -> pathlib.Path:
+    """
+    Get the real path of the directory of the given file.
+    
+    When `path` is `None`, the directory of the main module will be returned.
+    
+    If main module is not a file, the current working directory will be returned.
+    """
     path = path or getattr(sys.modules["__main__"], "__file__", '') or ''
     path = os.path.dirname(real_path(path))
     return pathlib.Path(path)
 
 
-def real_path(path: str) -> pathlib.Path:
+def real_path(path: str | pathlib.Path) -> pathlib.Path:
+    """
+    Get the real path of the given file.
+    """
     path = os.path.expanduser(path)
     path = os.path.expandvars(path)
     path = os.path.normpath(path)
@@ -136,9 +166,43 @@ def version_cmp(v1: str, v2: str) -> int:
 
 
 def to_ordinal(num: int) -> str:
-    if num % 100 in [11, 12, 13]:
+    """
+    Convert a number to its ordinal representation.
+    """
+    abs_num = abs(num)
+    if abs_num % 100 in [11, 12, 13]:
         return f"{num}th"
-    return f"{num}{['th', 'st', 'nd', 'rd'][num % 10 if num % 10 < 4 else 0]}"
+    return f"{num}{['th', 'st', 'nd', 'rd'][abs_num % 10 if abs_num % 10 < 4 else 0]}"
+
+
+@overload
+def check(cond: Literal[False, 0, b'', '', None], msg: str = None,
+          exc: type[Exception] = AssertionError,) -> NoReturn:
+    ...
+
+@overload
+def check(cond: Any, msg: str = None,
+          exc: type[Exception] = AssertionError,) -> None | NoReturn:
+    ...
+
+def check(cond: Any, msg: str = None,
+          exc: type[Exception] = AssertionError,) -> None | NoReturn:
+    """
+    Raise an exception if the condition is not met.
+
+    `assert` may be unavailable in some cases, so this function is provided.
+    """
+    if not cond:
+        if msg is None:  # pragma: no branch
+            curframe = inspect.currentframe()
+            if curframe:  # pragma: no branch
+                calframe = inspect.getouterframes(curframe, 2)
+                ctx = calframe[1].code_context
+                if ctx:  # pragma: no branch
+                    msg = f"Assertion failed: {ctx[-1].strip()}"
+        raise exc(msg)
+
+    return None
 
 
 def selenium_cookies_to_jar(raws: list[dict[str, str]]) -> hjar.CookieJar:
@@ -166,3 +230,31 @@ def selenium_cookies_to_jar(raws: list[dict[str, str]]) -> hjar.CookieJar:
         })
         jar.set_cookie(cookie)
     return jar
+
+
+class DummyLogger:  # pragma: no cover
+    """A logger that does nothing"""
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def debug(self, msg: object, *args, **kw) -> None:
+        pass
+
+    def info(self, msg: object, *args, **kw) -> None:
+        pass
+
+    def warning(self, msg: object, *args, **kw) -> None:
+        pass
+
+    def error(self, msg: object, *args, **kw) -> None:
+        pass
+
+    def critical(self, msg: object, *args, **kw) -> None:
+        pass
+
+    def exception(self, msg: object, *args, **kw) -> None:
+        pass
+
+    def log(self, level: int, msg: object, *args, **kw) -> None:
+        pass

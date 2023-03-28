@@ -91,5 +91,7 @@ class EventHint:
     def __call__(self, *args, **kwargs):
         return self._chain(*args, **kwargs)
 
-    def __getattr__(self, event: str) -> EventHint:
+    def __getattribute__(self, event: str) -> EventHint:
+        if event.startswith("_"):
+            return super().__getattribute__(event)
         return EventHint(strchain=self._chain[event])

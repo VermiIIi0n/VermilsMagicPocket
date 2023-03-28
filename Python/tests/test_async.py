@@ -8,6 +8,7 @@ from threading import Thread, get_ident
 from concurrent.futures._base import CancelledError as SyncCancelledError
 from vermils.asynctools import to_async_gen, ensure_async, sync_await, async_run
 from vermils.asynctools import get_create_loop, AsinkRunner, TerminateRunner, select
+from vermils.asynctools import wait_until
 
 
 async def test_get_create_loop():
@@ -509,3 +510,21 @@ async def test_select_generators():
     async for i in select(gens):
         ret.append(i)
     assert sorted(ret) == expected
+
+async def test_select_misc():
+
+    async def gen():
+        i = 5
+        while i:
+            i -= 1
+            yield 1
+    
+    async for i in select([gen(), gen()], return_future=True):
+        assert 1 == await i
+
+async def test_wait_until():
+    async def raise_error():
+        await asyncio.sleep(0.01)
+        raise ValueError("TEST")
+    
+    await wait_until(raise_error())

@@ -65,6 +65,10 @@ class BaseActionChain(Sequence[ActionVar]):
     @property
     def actions(self) -> Sequence[ActionVar]:
         return tuple(self)
+    
+    def __call__(self, action: ActionVar) -> ActionVar:
+        self.append(action)
+        return action
 
     def __iter__(self) -> Iterator[ActionVar]:
         return iter(self._seq)

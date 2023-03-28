@@ -1,5 +1,6 @@
 import pytest
 from vermils.react import EventHook, ActionCentipede, ActionChain, EventHint
+from vermils.react import EventGroup
 
 
 def test_action_chain_as_seq():
@@ -98,6 +99,8 @@ def test_action_chain():
         chain.insert(0, mul2)
     with pytest.raises(RuntimeError):
         chain += chain2
+    with pytest.raises(RuntimeError):
+        chain(mul2)
 
 
 async def test_action_chain_async():
@@ -215,3 +218,4 @@ async def test_event_hook_async():
     hook.unhook("test1")
     with pytest.raises(ValueError):
         await hook.aemit("test1", 2)
+

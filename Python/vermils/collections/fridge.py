@@ -13,7 +13,7 @@ V_co = TypeVar("V_co", covariant=True)
 __all__ = ("freeze", "FrozenDict", "FrozenList")
 
 
-class FrozenDict(Mapping[K_co, V_co]):
+class FrozenDict(Mapping[K_co, V_co]):  # type: ignore[type-var]
     """
     An immutable dictionary.
 
@@ -141,24 +141,24 @@ class FrozenList(tuple[V_co]):
 
 @overload
 def freeze(obj: dict, ensure_hashable=False,  # type: ignore[misc]
-           *, memo: set[int] = None) -> FrozenDict: ...
+           *, memo: set[int] | None = None) -> FrozenDict: ...
 
 
 @overload
 def freeze(obj: list, ensure_hashable=False,  # type: ignore[misc]
-           *, memo: set[int] = None) -> FrozenList: ...
+           *, memo: set[int] | None = None) -> FrozenList: ...
 
 
 @overload
 def freeze(obj: set, ensure_hashable=False,  # type: ignore[misc]
-           *, memo: set[int] = None) -> frozenset: ...
+           *, memo: set[int] | None = None) -> frozenset: ...
 
 
 @overload
-def freeze(obj: V, ensure_hashable=False, *, memo: set[int] = None) -> V: ...
+def freeze(obj: V, ensure_hashable=False, *, memo: set[int] | None = None) -> V: ...
 
 
-def freeze(obj, ensure_hashable=False, *, memo: set[int] = None):
+def freeze(obj, ensure_hashable=False, *, memo=None):
     """
     Freeze an object by making it immutable and thus hashable.
 
