@@ -84,9 +84,10 @@ class MonoLogger:
     def critical(self):
         return self._critical.critical
 
-    @property
-    def exception(self):
-        return self._error.exception
+    def exception(self, msg: object, *args, **kw):
+        if "exc_info" not in kw:
+            kw["exc_info"] = msg
+        return self._error.exception(msg, *args, **kw)
 
     def log(self, level: int, msg: object, *args, **kwargs):
         level = level

@@ -1,6 +1,5 @@
 import pytest
 from vermils.react import EventHook, ActionCentipede, ActionChain, EventHint
-from vermils.react import EventGroup
 
 
 def test_action_chain_as_seq():
