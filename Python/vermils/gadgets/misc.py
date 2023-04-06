@@ -95,7 +95,8 @@ def load_module(module_name: str,
     """
     if module_name in sys.modules:
         return sys.modules[module_name]
-    if module_path:
+    if module_path is not None:
+        module_path = Path(module_path)
         module_path = module_path.resolve()
         if module_path not in sys.path:
             sys.path.append(str(module_path))
@@ -143,7 +144,7 @@ def relative_to(path: Path | str, anchor: Path | str | None = None) -> Path:
     >>> relative_to("../", "foo/bar") == Path("foo/")
     """
     anchor = anchor or getattr(sys.modules["__main__"], "__file__", '.')
-    anchor = anchor if isinstance(anchor, Path) else Path(cast(str, anchor))
+    anchor = anchor if isinstance(anchor, Path) else Path(anchor or '.')
     path = path if isinstance(path, Path) else Path(path)
     if path.is_absolute():
         return path
