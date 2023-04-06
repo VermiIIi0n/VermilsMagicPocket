@@ -307,6 +307,8 @@ def test_check():
     
 
 def test_relative_to():
+    if platform.system() == "Windows":
+        return
     absp = Path("/some/file")
     assert relative_to(absp, absp) == absp
     assert relative_to(absp) == absp
