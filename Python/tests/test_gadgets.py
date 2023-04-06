@@ -9,7 +9,7 @@ from vermils.gadgets import mimics, supports_in, sort_class
 from vermils.gadgets import stringify_keys, str_to_object, real_dir
 from vermils.gadgets import real_path, version_cmp, load_module
 from vermils.gadgets import to_ordinal, selenium_cookies_to_jar
-from vermils.gadgets import SideLogger, MonoLogger, check
+from vermils.gadgets import SideLogger, MonoLogger, check, relative_to
 
 
 def test_inspects():
@@ -304,3 +304,12 @@ def test_check():
     
     with pytest.raises(AssertionError, match=''):
         check(False, msg='')
+    
+
+def test_relative_to():
+    absp = Path("/some/file")
+    assert relative_to(absp, absp) == absp
+    assert relative_to(absp) == absp
+
+    relp = Path("some2/file2")
+    assert relative_to(relp, absp) == "/some"/relp

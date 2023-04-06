@@ -231,13 +231,12 @@ async def select(awaitables: Sequence[Awaitable[T] | AsyncGenerator[T, Any]],
     similar to asyncio.as_completed but returns the results as they are done.
 
     If one of the tasks raised an exception, it will be raised by `select`
-     after other tasks are done.
+    if `return_future` is False, otherwise the future will be returned.
 
     * `awaitables` - the awaitables to wait for, can be `coroutine`, `future`,
      `AsyncGenerator`
     * `buffersize` - if > 0, the max number of results to buffer before yielding,
-     this can prevent the generator from eating up RAM if the results are slow
-      to be comsumed. Sometimes
+     this can prevent the generator from eating up RAM.
     * `return_future` - if True, the future will be returned instead of the
         result.
 
@@ -250,7 +249,7 @@ async def select(awaitables: Sequence[Awaitable[T] | AsyncGenerator[T, Any]],
 
     async def _run(aw: Awaitable[T] | AsyncGenerator[T, Any]):
         if inspect.isasyncgen(aw):
-            task = asyncio.ensure_future(aw.asend(None))
+            task = asyncio.create_task(aw.asend(None))
         else:
             aw = cast(Awaitable[T], aw)
             task = asyncio.ensure_future(aw)

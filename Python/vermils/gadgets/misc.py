@@ -5,13 +5,12 @@ Utility functions.
 from __future__ import annotations
 import http.cookiejar as hjar
 import sys
-import os
 import re
 import inspect
-import pathlib
 import importlib
 import contextlib
-from typing import Mapping, NoReturn, Sequence, TypeVar, Iterable, Callable, Any
+from pathlib import Path
+from typing import Mapping, NoReturn, Sequence, TypeVar, Iterable, Callable, Any, cast
 from typing import Literal, overload
 
 C = TypeVar("C", bound=Callable)
@@ -19,11 +18,12 @@ C = TypeVar("C", bound=Callable)
 __all__ = ("stringify_keys", "supports_in", "mimics", "sort_class",
            "str_to_object", "real_dir", "real_path", "version_cmp",
            "to_ordinal", "selenium_cookies_to_jar", "DummyLogger",
-           "load_module", "check")
+           "load_module", "check", "relative_to")
 
 
 def mimics(_: C) -> Callable[[Callable], C]:
     """
+    ### `mimics()`
     Type trick. This decorator is used to make a function mimic the signature
     of another function.
     """
@@ -35,6 +35,7 @@ def mimics(_: C) -> Callable[[Callable], C]:
 
 def supports_in(obj) -> bool:
     """
+    ### `supports_in()`
     Check if an object supports the ``in`` operator.
 
     Be careful: When a `Generator` be evaluated when using ``in``
@@ -60,7 +61,10 @@ def stringify_keys(data, memo: dict = None):
 
 
 def sort_class(cls: Iterable[type]) -> list[type]:
-    """Sort classes by inheritance. From child to parent."""
+    """
+    ### `sort_class()`
+    Sort classes by inheritance. From child to parent.
+    """
     ls: list[type] = []
     for c in cls:
         it = iter(enumerate(ls))
@@ -77,50 +81,78 @@ def sort_class(cls: Iterable[type]) -> list[type]:
 
 def str_to_object(object_name: str, module: str = "__main__") -> Any:
     """
+    ### `str_to_object()`
     Get object by its name and module(default to main module)
     """
     return getattr(sys.modules[module], object_name)
 
 
-def load_module(module_name: str, module_path: str | pathlib.Path):
+def load_module(module_name: str,
+                module_path: str | Path | None = None):
     """
+    ### `load_module()`
     Load a module from a path.
     """
     if module_name in sys.modules:
         return sys.modules[module_name]
-    module_path = real_path(module_path)
-    if module_path not in sys.path:
-        sys.path.append(str(module_path))
+    if module_path:
+        module_path = module_path.resolve()
+        if module_path not in sys.path:
+            sys.path.append(str(module_path))
     module = importlib.import_module(module_name)
     return module
 
 
-def real_dir(path: str | pathlib.Path | None = None) -> pathlib.Path:
+def real_dir(path: str | Path | None = None) -> Path:
     """
+    ### `real_dir()`
     Get the real path of the directory of the given file.
-    
+
     When `path` is `None`, the directory of the main module will be returned.
-    
+
     If main module is not a file, the current working directory will be returned.
     """
-    path = path or getattr(sys.modules["__main__"], "__file__", '') or ''
-    path = os.path.dirname(real_path(path))
-    return pathlib.Path(path)
+    path = path or getattr(sys.modules["__main__"], "__file__", '.')
+    path = Path(cast(str, path)).resolve()
+    return path.parent
 
 
-def real_path(path: str | pathlib.Path) -> pathlib.Path:
+def real_path(path: str | Path) -> Path:
     """
+    ### `real_path()`
     Get the real path of the given file.
+
+    *This helper function was written before I knew about `pathlib.Path.resolve()`...
+    Just leave it here for compatibility.
     """
-    path = os.path.expanduser(path)
-    path = os.path.expandvars(path)
-    path = os.path.normpath(path)
-    path = os.path.realpath(path)
-    return pathlib.Path(path)
+    # path = os.path.expanduser(path)
+    # path = os.path.expandvars(path)
+    # path = os.path.normpath(path)
+    # path = os.path.realpath(path)
+    return Path(path).resolve()
+
+
+def relative_to(path: Path | str, anchor: Path | str | None = None) -> Path:
+    """
+    ### `relative_to()` 
+    Expand relative path based on the anchor
+    Default to the main file.
+
+    >>> relative_to("foo/bar", "dir/baz") == Path("dir/foo/bar")
+
+    >>> relative_to("../", "foo/bar") == Path("foo/")
+    """
+    anchor = anchor or getattr(sys.modules["__main__"], "__file__", '.')
+    anchor = anchor if isinstance(anchor, Path) else Path(cast(str, anchor))
+    path = path if isinstance(path, Path) else Path(path)
+    if path.is_absolute():
+        return path
+    return anchor.parent / path
 
 
 def version_cmp(v1: str, v2: str) -> int:
     """
+    ### `version_cmp()`
     Compare two version strings.
     Versions must be valid SemVer strings or 'v'/'V' prefixed SemVer strings,
     or a `ValueError` will be raised.
@@ -167,6 +199,7 @@ def version_cmp(v1: str, v2: str) -> int:
 
 def to_ordinal(num: int) -> str:
     """
+    ### `to_ordinal()`
     Convert a number to its ordinal representation.
     """
     abs_num = abs(num)
@@ -180,14 +213,17 @@ def check(cond: Literal[False, 0, b'', '', None], msg: str = None,
           exc: type[Exception] = AssertionError,) -> NoReturn:
     ...
 
+
 @overload
 def check(cond: Any, msg: str = None,
           exc: type[Exception] = AssertionError,) -> None | NoReturn:
     ...
 
+
 def check(cond: Any, msg: str = None,
           exc: type[Exception] = AssertionError,) -> None | NoReturn:
     """
+    ### `check()`
     Raise an exception if the condition is not met.
 
     `assert` may be unavailable in some cases, so this function is provided.
