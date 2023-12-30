@@ -7,7 +7,7 @@ Languages Supported:
 - [ ] Assembly
 - [ ] Bash
 - [ ] C
-- [ ] C++
+- [X] [C++](./C%2B%2B/README.md)
 - [ ] CSS
 - [ ] Go
 - [ ] JavaScript

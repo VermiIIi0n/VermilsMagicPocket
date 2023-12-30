@@ -1,0 +1,9 @@
+[submodule "C++/ffmt"]
+	path = C++/ffmt
+	url = git@github.com:VermiIIi0n/ffmt.git
+[submodule "C++/PropertyPlusPlus"]
+	path = C++/PropertyPlusPlus
+	url = git@github.com:VermiIIi0n/PropertyPlusPlus.git
+[submodule "C++/vallocator"]
+	path = C++/vallocator
+	url = git@github.com:VermiIIi0n/vallocator.git
