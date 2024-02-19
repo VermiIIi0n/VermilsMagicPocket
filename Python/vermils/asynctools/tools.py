@@ -268,11 +268,10 @@ async def select(awaitables: Sequence[Awaitable[T] | AsyncGenerator[T, Any]],
             aw, task = done.pop().result()
             exc = task.exception()
 
-            if inspect.isasyncgen(aw):
-                if exc is None:
-                    pending.add(loop.create_task(_run(aw)))
-                elif isinstance(exc, StopAsyncIteration):
-                    continue
+            is_asyncgen = inspect.isasyncgen(aw)
+            if is_asyncgen and isinstance(exc, StopAsyncIteration):
+                continue
+
             try:
                 if return_future:
                     yield task
@@ -282,3 +281,6 @@ async def select(awaitables: Sequence[Awaitable[T] | AsyncGenerator[T, Any]],
                 for task in pending:
                     task.cancel()
                 raise
+
+            if is_asyncgen and exc is None:
+                pending.add(loop.create_task(_run(aw)))
